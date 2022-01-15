@@ -11,38 +11,38 @@
 #include <hyperleveldb/config.h>
 #endif
 
-#ifdef HAVE_ENDIAN_H
+#if HAVE_ENDIAN_H
 #include <endian.h>
 #endif
 
-#ifdef HAVE_MACHINE_ENDIAN_H
+#if HAVE_MACHINE_ENDIAN_H
 #include <machine/endian.h>
 #endif
 
-#ifdef HAVE_SYS_ENDIAN_H
+#if HAVE_SYS_ENDIAN_H
 #include <sys/endian.h>
 #endif
 
-#ifdef HAVE_SYS_ISA_DEFS_H
+#if HAVE_SYS_ISA_DEFS_H
 #include <sys/isa_defs.h>
 #endif
 
-#ifdef HAVE_SYS_ENDIAN_H
+#if HAVE_SYS_ENDIAN_H
 #include <sys/types.h>
 #endif
 
-#undef PLATFORM_IS_LITTLE_ENDIAN
+// #undef PLATFORM_IS_LITTLE_ENDIAN
 
-#if defined(__DARWIN_LITTLE_ENDIAN) && defined(__DARWIN_BYTE_ORDER)
-# define PLATFORM_IS_LITTLE_ENDIAN (__DARWIN_BYTE_ORDER == __DARWIN_LITTLE_ENDIAN)
-#elif defined(_BYTE_ORDER) && defined(_LITTLE_ENDIAN)
-  // Due to a bug in the NDK x86 <sys/endian.h> definition,
-  // _BYTE_ORDER must be used instead of __BYTE_ORDER on Android.
-  // See http://code.google.com/p/android/issues/detail?id=39824
-# define PLATFORM_IS_LITTLE_ENDIAN (_BYTE_ORDER == _LITTLE_ENDIAN)
-#elif defined(_LITTLE_ENDIAN)
-# define PLATFORM_IS_LITTLE_ENDIAN true
-#endif
+// #if defined(__DARWIN_LITTLE_ENDIAN) && defined(__DARWIN_BYTE_ORDER)
+// # define PLATFORM_IS_LITTLE_ENDIAN (__DARWIN_BYTE_ORDER == __DARWIN_LITTLE_ENDIAN)
+// #elif defined(_BYTE_ORDER) && defined(_LITTLE_ENDIAN)
+//   // Due to a bug in the NDK x86 <sys/endian.h> definition,
+//   // _BYTE_ORDER must be used instead of __BYTE_ORDER on Android.
+//   // See http://code.google.com/p/android/issues/detail?id=39824
+// # define PLATFORM_IS_LITTLE_ENDIAN (_BYTE_ORDER == _LITTLE_ENDIAN)
+// #elif defined(_LITTLE_ENDIAN)
+// # define PLATFORM_IS_LITTLE_ENDIAN true
+// #endif
 
 #include <pthread.h>
 #ifdef SNAPPY
@@ -52,11 +52,11 @@
 #include <string>
 #include "port/atomic_pointer.h"
 
-#ifndef PLATFORM_IS_LITTLE_ENDIAN
-#define PLATFORM_IS_LITTLE_ENDIAN (__BYTE_ORDER == __LITTLE_ENDIAN)
-#endif
+// #ifndef PLATFORM_IS_LITTLE_ENDIAN
+// #define PLATFORM_IS_LITTLE_ENDIAN (__BYTE_ORDER == __LITTLE_ENDIAN)
+// #endif
 
-#ifdef HAVE_FFLUSH_UNLOCKED
+#if HAVE_FFLUSH_UNLOCKED
 // do nothing
 #elif HAVE_FFLUSH
 #define fflush_unlocked fflush
@@ -64,7 +64,7 @@
 #error "no fflush found"
 #endif
 
-#ifdef HAVE_FREAD_UNLOCKED
+#if HAVE_FREAD_UNLOCKED
 // do nothing
 #elif HAVE_FREAD
 #define fread_unlocked fread
@@ -72,7 +72,7 @@
 #error "no fread found"
 #endif
 
-#ifdef HAVE_FWRITE_UNLOCKED
+#if HAVE_FWRITE_UNLOCKED
 // do nothing
 #elif HAVE_FWRITE
 #define fwrite_unlocked fwrite
@@ -91,8 +91,8 @@
 namespace leveldb {
 namespace port {
 
-static const bool kLittleEndian = PLATFORM_IS_LITTLE_ENDIAN;
-#undef PLATFORM_IS_LITTLE_ENDIAN
+static const bool kLittleEndian = LITTLE_ENDIAN;
+//#undef PLATFORM_IS_LITTLE_ENDIAN
 
 class CondVar;
 

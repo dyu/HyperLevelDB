@@ -72,7 +72,9 @@ static int64_t TotalFileSize(const std::vector<FileMetaData*>& files) {
 }
 
 #pragma GCC diagnostic push
+#if !defined(__clang__) && !defined(_MSC_VER)
 #pragma GCC diagnostic ignored "-Wunsafe-loop-optimizations"
+#endif
 
 Version::~Version() {
   assert(refs_ == 0);
@@ -685,7 +687,9 @@ class VersionSet::Builder {
   }
 
 #pragma GCC diagnostic push
+#if !defined(__clang__) && !defined(_MSC_VER)
 #pragma GCC diagnostic ignored "-Wunsafe-loop-optimizations"
+#endif
 
   ~Builder() {
     for (unsigned level = 0; level < config::kNumLevels; level++) {
@@ -822,7 +826,9 @@ class VersionSet::Builder {
 };
 
 #pragma GCC diagnostic push
+#if !defined(__clang__) && !defined(_MSC_VER)
 #pragma GCC diagnostic ignored "-Wunsafe-loop-optimizations"
+#endif
 
 VersionSet::VersionSet(const std::string& dbname,
                        const Options* options,
@@ -1588,7 +1594,9 @@ Compaction::Compaction(unsigned l)
 }
 
 #pragma GCC diagnostic push
+#if !defined(__clang__) && !defined(_MSC_VER)
 #pragma GCC diagnostic ignored "-Wunsafe-loop-optimizations"
+#endif
 
 Compaction::~Compaction() {
   if (input_version_ != NULL) {

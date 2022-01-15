@@ -116,9 +116,12 @@ static_library("hyperleveldb") {
     "-fno-builtin-memcmp",
     # added
     "-Wno-sign-compare",
-    "-Wno-unused-but-set-variable",
     "-Wno-variadic-macros",
   ]
+  
+  if (!is_clang) {
+    cflags += [ "-Wno-unused-but-set-variable" ]
+  }
 
   public_configs = [ ":hyperleveldb_config" ]
   

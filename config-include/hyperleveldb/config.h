@@ -22,20 +22,35 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
+//@dyu
+#ifdef __APPLE__
+#define HAVE_ENDIAN_H 0
+#else
 /* Define to 1 if you have the <endian.h> header file. */
 #define HAVE_ENDIAN_H 1
+#endif
 
 /* Define to 1 if you have the `fflush' function. */
 #define HAVE_FFLUSH 1
 
+//@dyu
+#ifdef __APPLE__
+#define HAVE_FFLUSH_UNLOCKED 0
+#else
 /* Define to 1 if you have the `fflush_unlocked' function. */
 #define HAVE_FFLUSH_UNLOCKED 1
+#endif
 
 /* Define to 1 if you have the `fread' function. */
 #define HAVE_FREAD 1
 
+//@dyu
+#ifdef __APPLE__
+#define HAVE_FREAD_UNLOCKED 0
+#else
 /* Define to 1 if you have the `fread_unlocked' function. */
 #define HAVE_FREAD_UNLOCKED 1
+#endif
 
 /* Define to 1 if you have the `fsync' function. */
 #define HAVE_FSYNC 1
@@ -46,8 +61,13 @@
 /* Define to 1 if you have the `fwrite' function. */
 #define HAVE_FWRITE 1
 
+//@dyu
+#ifdef __APPLE__
+#define HAVE_FWRITE_UNLOCKED 0
+#else
 /* Define to 1 if you have the `fwrite_unlocked' function. */
 #define HAVE_FWRITE_UNLOCKED 1
+#endif
 
 /* Define to 1 if you have the `getpagesize' function. */
 #define HAVE_GETPAGESIZE 1
@@ -55,8 +75,13 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
 
+//@dyu
+#ifdef __APPLE__
 /* Define to 1 if you have the <machine/endian.h> header file. */
-/* #undef HAVE_MACHINE_ENDIAN_H */
+#define HAVE_MACHINE_ENDIAN_H 1
+#else
+#define HAVE_MACHINE_ENDIAN_H 0
+#endif
 
 /* Define to 1 if you have the `mach_absolute_time' function. */
 /* #undef HAVE_MACH_ABSOLUTE_TIME */

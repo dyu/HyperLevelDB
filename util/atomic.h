@@ -74,8 +74,10 @@ namespace atomic
 inline void
 memory_barrier()
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     MemoryBarrier();
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    __sync_synchronize();
 #elif defined(__x86_64__)
     __asm__ __volatile__("mfence" : : : "memory");
 #else
@@ -117,7 +119,7 @@ store_32_release(volatile uint32_t* ptr, uint32_t value)
 inline void
 store_64_nobarrier(volatile uint64_t* ptr, uint64_t value)
 {
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(__aarch64__) || defined(_M_ARM64)
     *ptr = value;
 #else
     __asm__ __volatile__("movq %1, %%mm0\n\t"  // Use mmx reg for 64-bit atomic
@@ -224,7 +226,7 @@ load_32_release(volatile const uint32_t* ptr)
 inline uint64_t
 load_64_nobarrier(volatile const uint64_t* ptr)
 {
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(__aarch64__) || defined(_M_ARM64)
     return *ptr;
 #else
     uint64_t value;
@@ -323,8 +325,10 @@ inline uint64_t __sync_val_compare_and_swap(volatile uint64_t* ptr,
 inline uint32_t
 compare_and_swap_32_nobarrier(volatile uint32_t* ptr, uint32_t old_value, uint32_t new_value)
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     return InterlockedCompareExchange(ptr, old_value, new_value);
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    return __sync_val_compare_and_swap(ptr, old_value, new_value);
 #else
     uint32_t prev;
     __asm__ __volatile__("lock; cmpxchgl %1,%2"
@@ -338,8 +342,11 @@ compare_and_swap_32_nobarrier(volatile uint32_t* ptr, uint32_t old_value, uint32
 inline uint32_t
 compare_and_swap_32_acquire(volatile uint32_t* ptr, uint32_t old_value, uint32_t new_value)
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     return InterlockedCompareExchangeAcquire(ptr, old_value, new_value);
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    // TODO: implement the version with only the acquire semantics
+    return __sync_val_compare_and_swap(ptr, old_value, new_value);
 #else
     uint32_t x = compare_and_swap_32_nobarrier(ptr, old_value, new_value);
 
@@ -361,8 +368,10 @@ compare_and_swap_32_release(volatile uint32_t* ptr, uint32_t old_value, uint32_t
 inline uint64_t
 compare_and_swap_64_nobarrier(volatile uint64_t* ptr, uint64_t old_value, uint64_t new_value)
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     return InterlockedCompareExchange64((volatile __int64*)ptr, old_value, new_value);
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    return __sync_val_compare_and_swap(ptr, old_value, new_value);
 #elif defined(__x86_64__)
     uint64_t prev;
     __asm__ __volatile__("lock; cmpxchgq %1,%2"
@@ -371,7 +380,7 @@ compare_and_swap_64_nobarrier(volatile uint64_t* ptr, uint64_t old_value, uint64
                          : "memory");
     return prev;
 #else
-    return __sync_val_compare_and_swap(ptr, old_val, new_val);
+    return __sync_val_compare_and_swap(ptr, old_value, new_value);
 #endif
 }
 
@@ -383,10 +392,12 @@ compare_and_swap_64_acquire(volatile uint64_t* ptr, uint64_t old_value, uint64_t
 #else
     uint64_t x = compare_and_swap_64_nobarrier(ptr, old_value, new_value);
 
+    #if !defined(__aarch64__) && !defined(_M_ARM64)
     if (LevelDB_AtomicOps_Internalx86CPUFeatures.has_amd_lock_mb_bug)
     {
         __asm__ __volatile__("lfence" : : : "memory");
     }
+    #endif
 
     return x;
 #endif
@@ -406,8 +417,10 @@ template <typename P>
 inline P*
 compare_and_swap_ptr_nobarrier(P* volatile* ptr, P* old_value, P* new_value)
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     return (P*)InterlockedCompareExchangePointer((PVOID *)ptr, (PVOID)old_value, (PVOID)new_value);
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    return __sync_val_compare_and_swap(ptr, old_value, new_value);
 #elif defined(__x86_64__)
     P* prev;
     __asm__ __volatile__("lock; cmpxchgq %1,%2"
@@ -434,10 +447,12 @@ compare_and_swap_ptr_acquire(P* volatile* ptr, P* old_value, P* new_value)
 #else
     P* x = compare_and_swap_ptr_nobarrier(ptr, old_value, new_value);
 
+    #if !defined(__aarch64__) && !defined(_M_ARM64)
     if (LevelDB_AtomicOps_Internalx86CPUFeatures.has_amd_lock_mb_bug)
     {
         __asm__ __volatile__("lfence" : : : "memory");
     }
+    #endif
 
     return x;
 #endif
@@ -460,10 +475,12 @@ compare_and_swap_ptr_fullbarrier(P* volatile* ptr, P* old_value, P* new_value)
 {
     P* x = compare_and_swap_ptr_nobarrier(ptr, old_value, new_value);
 
+    #if !defined(__aarch64__) && !defined(_M_ARM64)
     if (LevelDB_AtomicOps_Internalx86CPUFeatures.has_amd_lock_mb_bug)
     {
         __asm__ __volatile__("lfence" : : : "memory");
     }
+    #endif
 
     return x;
 }
@@ -473,21 +490,24 @@ compare_and_swap_ptr_fullbarrier(P* volatile* ptr, P* old_value, P* new_value)
 inline uint32_t
 exchange_32_nobarrier(volatile uint32_t* ptr, uint32_t new_value)
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     InterlockedExchange(ptr, new_value);
+    return new_value;  // Now it's the previous value.
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    return __sync_swap(ptr, new_value);
 #else
     __asm__ __volatile__("xchgl %1,%0"  // The lock prefix is implicit for xchg.
                          : "=r" (new_value)
                          : "m" (*ptr), "0" (new_value)
                          : "memory");
-#endif
     return new_value;  // Now it's the previous value.
+#endif
 }
 
 inline uint64_t
 exchange_64_nobarrier(volatile uint64_t* ptr, uint64_t new_value)
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     InterlockedExchange64((volatile __int64*)ptr, new_value);
 #elif defined(__x86_64__)
     __asm__ __volatile__("xchgq %1,%0"  // The lock prefix is implicit for xchg.
@@ -501,7 +521,7 @@ exchange_64_nobarrier(volatile uint64_t* ptr, uint64_t new_value)
     do
     {
         old_val = load_64_nobarrier(ptr);
-    } while (__sync_val_compare_and_swap(ptr, old_val, new_val) != old_val);
+    } while (__sync_val_compare_and_swap(ptr, old_val, new_value) != old_val);
 
     return old_val;
 #endif
@@ -511,8 +531,10 @@ template <typename P>
 inline P*
 exchange_ptr_nobarrier(P* volatile* ptr, P* new_value)
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     InterlockedExchangePointer(ptr, new_value);
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    __sync_swap(ptr, new_value);
 #elif defined(__x86_64__)
     __asm__ __volatile__("xchgq %1,%0"  // The lock prefix is implicit for xchg.
                          : "=r" (new_value)
@@ -532,8 +554,10 @@ exchange_ptr_nobarrier(P* volatile* ptr, P* new_value)
 inline uint32_t
 increment_32_nobarrier(volatile uint32_t* ptr, uint32_t increment)
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     return InterlockedExchangeAdd((LONG *)ptr, increment);
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    return __sync_fetch_and_add(ptr, increment);
 #else
     uint32_t temp = increment;
     __asm__ __volatile__("lock; xaddl %0,%1"
@@ -547,8 +571,10 @@ increment_32_nobarrier(volatile uint32_t* ptr, uint32_t increment)
 inline uint32_t
 increment_32_fullbarrier(volatile uint32_t* ptr, uint32_t increment)
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     return InterlockedExchangeAdd((LONG *)ptr, increment);
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    return __sync_fetch_and_add(ptr, increment);
 #else
     uint32_t temp = increment;
     __asm__ __volatile__("lock; xaddl %0,%1"
@@ -568,7 +594,7 @@ increment_32_fullbarrier(volatile uint32_t* ptr, uint32_t increment)
 inline uint64_t
 increment_64_nobarrier(volatile uint64_t* ptr, uint64_t increment)
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     return InterlockedExchangeAdd64((LONG64 *) ptr, increment);
 #elif defined(__x86_64__)
     uint64_t temp = increment;
@@ -594,8 +620,10 @@ increment_64_nobarrier(volatile uint64_t* ptr, uint64_t increment)
 inline uint64_t
 increment_64_fullbarrier(volatile uint64_t* ptr, uint64_t increment)
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     return InterlockedExchangeAdd64((LONG64 *)ptr, increment);
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    return __sync_fetch_and_add(ptr, increment);
 #else
     uint64_t new_val = increment_64_nobarrier(ptr, increment);
 
@@ -614,8 +642,10 @@ increment_64_fullbarrier(volatile uint64_t* ptr, uint64_t increment)
 inline void
 or_32_nobarrier(volatile uint32_t* ptr, uint32_t orwith)
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     _InterlockedOr((LONG *)ptr, (LONG)orwith);
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    __sync_fetch_and_or(ptr, orwith);
 #else
     __asm__ __volatile__("lock; orl %0,%1"
                          : "+r" (orwith), "+m" (*ptr)
@@ -626,8 +656,10 @@ or_32_nobarrier(volatile uint32_t* ptr, uint32_t orwith)
 inline void
 or_64_nobarrier(volatile uint64_t* ptr, uint64_t orwith)
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     InterlockedOr64((__int64*)ptr, orwith);
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    __sync_fetch_and_or(ptr, orwith);
 #else
     __asm__ __volatile__("lock; orq %0,%1"
                          : "+r" (orwith), "+m" (*ptr)
@@ -640,8 +672,10 @@ or_64_nobarrier(volatile uint64_t* ptr, uint64_t orwith)
 inline void
 and_32_nobarrier(volatile uint32_t* ptr, uint32_t andwith)
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     _InterlockedAnd((LONG *)ptr, (LONG)andwith);
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    __sync_fetch_and_and(ptr, andwith);
 #else
     __asm__ __volatile__("lock; andl %0,%1"
                          : "+r" (andwith), "+m" (*ptr)
@@ -652,8 +686,10 @@ and_32_nobarrier(volatile uint32_t* ptr, uint32_t andwith)
 inline void
 and_64_nobarrier(volatile uint64_t* ptr, uint64_t andwith)
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     InterlockedAnd64((volatile __int64*)ptr, andwith);
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    __sync_fetch_and_and(ptr, andwith);
 #else
     __asm__ __volatile__("lock; andq %0,%1"
                          : "+r" (andwith), "+m" (*ptr)
