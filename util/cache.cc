@@ -274,7 +274,9 @@ static const unsigned kNumShardBits = 4;
 static const unsigned kNumShards = 1 << kNumShardBits;
 
 #pragma GCC diagnostic push
+#if !defined(__clang__) && !defined(_MSC_VER)
 #pragma GCC diagnostic ignored "-Wunsafe-loop-optimizations"
+#endif
 
 class ShardedLRUCache : public Cache {
  private:
