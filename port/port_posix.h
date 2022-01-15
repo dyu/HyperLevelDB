@@ -8,7 +8,7 @@
 #define STORAGE_LEVELDB_PORT_PORT_POSIX_H_
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <hyperleveldb/config.h>
 #endif
 
 #ifdef HAVE_ENDIAN_H
