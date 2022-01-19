@@ -11,25 +11,25 @@
 #include <hyperleveldb/config.h>
 #endif
 
-#if HAVE_ENDIAN_H
-#include <endian.h>
-#endif
+// #if HAVE_ENDIAN_H
+// #include <endian.h>
+// #endif
 
-#if HAVE_MACHINE_ENDIAN_H
-#include <machine/endian.h>
-#endif
+// #if HAVE_MACHINE_ENDIAN_H
+// #include <machine/endian.h>
+// #endif
 
-#if HAVE_SYS_ENDIAN_H
-#include <sys/endian.h>
-#endif
+// #if HAVE_SYS_ENDIAN_H
+// #include <sys/endian.h>
+// #endif
 
-#if HAVE_SYS_ISA_DEFS_H
-#include <sys/isa_defs.h>
-#endif
+// #if HAVE_SYS_ISA_DEFS_H
+// #include <sys/isa_defs.h>
+// #endif
 
-#if HAVE_SYS_ENDIAN_H
-#include <sys/types.h>
-#endif
+// #if HAVE_SYS_ENDIAN_H
+// #include <sys/types.h>
+// #endif
 
 // #undef PLATFORM_IS_LITTLE_ENDIAN
 
@@ -91,7 +91,16 @@
 namespace leveldb {
 namespace port {
 
-static const bool kLittleEndian = LITTLE_ENDIAN;
+// simplified endian detection for the 3 supported compilers: clang/gcc/msvc
+// https://github.com/abseil/abseil-cpp/blob/c59e7e59f5d29619ddc07fcb59be3dcba9585814/absl/base/config.h#L511-L521
+// gcc 4.6+ and clang 3.2+ both define __BYTE_ORDER__
+#if defined(_WIN32) || __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+static const bool kLittleEndian = true;
+#else
+static const bool kLittleEndian = false;
+#endif
+
+//static const bool kLittleEndian = LITTLE_ENDIAN;
 //#undef PLATFORM_IS_LITTLE_ENDIAN
 
 class CondVar;
