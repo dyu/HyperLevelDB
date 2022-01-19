@@ -5,11 +5,37 @@ config("hyperleveldb_config") {
   include_dirs = [ "include" ]
 }
 
-static_library("hyperleveldb") {
+config("hyperleveldb_local_config") {
   include_dirs = [
-    "config-include", # private
+    "config-include",
     ".",
   ]
+  defines = [
+    "SNAPPY=1",
+    "HAVE_CRC32C=1",
+    "LEVELDB_PLATFORM_POSIX=1",
+    "HAVE_CONFIG_H",
+  ]
+  
+  if (is_mac) {
+    defines += [ "OS_MACOSX=1" ]
+  } else {
+    defines += [ "OS_LINUX=1" ]
+  }
+
+  cflags = [
+    "-fno-builtin-memcmp",
+    # added
+    "-Wno-sign-compare",
+    "-Wno-variadic-macros",
+  ]
+  
+  if (!is_clang) {
+    cflags += [ "-Wno-unused-but-set-variable" ]
+  }
+}
+
+static_library("hyperleveldb") {
   sources = [
     #"db/c.cc",
     "db/builder.cc",
@@ -100,30 +126,7 @@ static_library("hyperleveldb") {
     "util/atomic.cc",
   ]
   
-  defines = [
-    "SNAPPY=1",
-    "HAVE_CRC32C=1",
-    "LEVELDB_PLATFORM_POSIX=1",
-    "HAVE_CONFIG_H",
-  ]
-  
-  if (is_mac) {
-    defines += [ "OS_MACOSX=1" ]
-  } else {
-    defines += [ "OS_LINUX=1" ]
-  }
-
-  cflags = [
-    "-fno-builtin-memcmp",
-    # added
-    "-Wno-sign-compare",
-    "-Wno-variadic-macros",
-  ]
-  
-  if (!is_clang) {
-    cflags += [ "-Wno-unused-but-set-variable" ]
-  }
-
+  configs += [ ":hyperleveldb_local_config" ]
   public_configs = [ ":hyperleveldb_config" ]
   
   deps = [
