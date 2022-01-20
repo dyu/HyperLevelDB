@@ -63,12 +63,28 @@ class Env {
   // Create an object that writes to a new file with the specified
   // name.  Deletes any existing file with the same name and creates a
   // new file.  On success, stores a pointer to the new file in
-  // *result and returns OK.  On failure stores NULL in *result and
+  // *result and returns OK.  On failure stores nullptr in *result and
   // returns non-OK.
   //
   // The returned file will only be accessed by one thread at a time.
   virtual Status NewWritableFile(const std::string& fname,
                                  WritableFile** result) = 0;
+
+  // Create an object that either appends to an existing file, or
+  // writes to a new file (if the file does not exist to begin with).
+  // On success, stores a pointer to the new file in *result and
+  // returns OK.  On failure stores nullptr in *result and returns
+  // non-OK.
+  //
+  // The returned file will only be accessed by one thread at a time.
+  //
+  // May return an IsNotSupportedError error if this Env does
+  // not allow appending to an existing file.  Users of Env (including
+  // the leveldb implementation) must be prepared to deal with
+  // an Env that does not support appending.
+  virtual Status NewAppendableFile(const std::string& fname,
+                                 WritableFile** result) = 0;
+
   virtual Status NewConcurrentWritableFile(const std::string& fname,
                                            ConcurrentWritableFile** result) = 0;
 
@@ -319,6 +335,9 @@ class EnvWrapper : public Env {
     return target_->NewRandomAccessFile(f, r);
   }
   Status NewWritableFile(const std::string& f, WritableFile** r) {
+    return target_->NewWritableFile(f, r);
+  }
+  Status NewAppendableFile(const std::string& f, WritableFile** r) {
     return target_->NewWritableFile(f, r);
   }
   Status NewConcurrentWritableFile(const std::string& f, ConcurrentWritableFile** r) {
