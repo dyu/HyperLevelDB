@@ -5,7 +5,7 @@
 #ifndef STORAGE_LEVELDB_DB_LOG_READER_H_
 #define STORAGE_LEVELDB_DB_LOG_READER_H_
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "db/log_format.h"
 #include "hyperleveldb/slice.h"
@@ -24,7 +24,7 @@ class Reader {
    public:
     virtual ~Reporter();
 
-    // Some corruption was detected.  "size" is the approximate number
+    // Some corruption was detected.  "bytes" is the approximate number
     // of bytes dropped due to the corruption.
     virtual void Corruption(size_t bytes, const Status& status) = 0;
   };
@@ -32,7 +32,7 @@ class Reader {
   // Create a reader that will return log records from "*file".
   // "*file" must remain live while this Reader is in use.
   //
-  // If "reporter" is non-NULL, it is notified whenever some data is
+  // If "reporter" is non-null, it is notified whenever some data is
   // dropped due to a detected corruption.  "*reporter" must remain
   // live while this Reader is in use.
   //
@@ -43,8 +43,11 @@ class Reader {
   Reader(SequentialFile* file, Reporter* reporter, bool checksum,
          uint64_t initial_offset);
 
-  ~Reader();
+  Reader(const Reader&) = delete;
+  Reader& operator=(const Reader&) = delete;
 
+  ~Reader();
+  
   // Resets the file cursor to the beginning of the file and
   // sets the initial_offset_ to the offset provided.
   Status Reset(uint64_t offset);
@@ -62,21 +65,6 @@ class Reader {
   uint64_t LastRecordOffset();
 
  private:
-  SequentialFile* const file_;
-  Reporter* const reporter_;
-  bool const checksum_;
-  char* const backing_store_;
-  Slice buffer_;
-  bool eof_;   // Last Read() indicated EOF by returning < kBlockSize
-
-  // Offset of the last record returned by ReadRecord.
-  uint64_t last_record_offset_;
-  // Offset of the first location past the end of buffer_.
-  uint64_t end_of_buffer_offset_;
-
-  // Offset at which to start looking for the first record to return
-  uint64_t initial_offset_;
-
   // Extend record types with the following special values
   enum {
     kEof = kMaxRecordType + 1,
@@ -98,13 +86,32 @@ class Reader {
 
   // Reports dropped bytes to the reporter.
   // buffer_ must be updated to remove the dropped bytes prior to invocation.
-  void ReportCorruption(size_t bytes, const char* reason);
-  void ReportDrop(size_t bytes, const Status& reason);
+  void ReportCorruption(uint64_t bytes, const char* reason);
+  void ReportDrop(uint64_t bytes, const Status& reason);
 
-  // No copying allowed
-  Reader(const Reader&);
-  void operator=(const Reader&);
+  SequentialFile* const file_;
+  Reporter* const reporter_;
+  bool const checksum_;
+  char* const backing_store_;
+  Slice buffer_;
+  bool eof_;  // Last Read() indicated EOF by returning < kBlockSize
+
+  // Offset of the last record returned by ReadRecord.
+  uint64_t last_record_offset_;
+  // Offset of the first location past the end of buffer_.
+  uint64_t end_of_buffer_offset_;
+
+  // Offset at which to start looking for the first record to return
+  uint64_t initial_offset_;
+
+  // True if we are resynchronizing after a seek (initial_offset_ > 0). In
+  // particular, a run of kMiddleType and kLastType records can be silently
+  // skipped in this mode
+  bool resyncing_;
 };
+
+// alias
+using SimpleReader = Reader;
 
 }  // namespace log
 }  // namespace leveldb
