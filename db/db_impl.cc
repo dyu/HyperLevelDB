@@ -1508,13 +1508,45 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* updates) {
   return s;
 }
 
-Status DBImpl::SequenceWriteBegin(Writer* w, WriteBatch* updates) {
+Status DBImpl::WriteUpdates(const WriteOptions& options, Slice updates,
+    const std::function<void(const Slice&, const Slice&)> handler) {
+  Writer w(&writers_mutex_);
+  Status s;
+  s = SequenceWriteBeginDiff(&w, WriteBatchInternal::RawCount(updates.data_));
+
+  if (s.ok()) {
+    EncodeFixed64((char*)updates.data_, w.start_sequence_);
+
+    // Add to log and apply to memtable.  We do this without holding the lock
+    // because both the log and the memtable are safe for concurrent access.
+    // The synchronization with readers occurs with SequenceWriteEnd.
+    s = w.log_->AddRecord(updates);
+
+    if (s.ok() && options.sync) {
+      s = w.logfile_->Sync();
+    }
+    if (s.ok()) {
+      s = WriteBatchInternal::InsertUpdatesInto(updates, w.mem_, handler);
+    }
+  }
+
+  if (!s.ok()) {
+    mutex_.Lock();
+    RecordBackgroundError(s);
+    mutex_.Unlock();
+  }
+
+  SequenceWriteEnd(&w);
+  return s;
+}
+
+Status DBImpl::SequenceWriteBeginDiff(Writer* w, uint64_t diff) {
   Status s;
 
   {
     MutexLock l(&mutex_);
     straight_reads_ = 0;
-    bool force = updates == NULL;
+    bool force = diff == 0;
     bool enqueue_mem = false;
     w->micros_ = versions_->NumLevelFiles(0);
 
@@ -1574,7 +1606,6 @@ Status DBImpl::SequenceWriteBegin(Writer* w, WriteBatch* updates) {
   }
 
   if (s.ok()) {
-    uint64_t diff = updates ? WriteBatchInternal::Count(updates) : 0;
     uint64_t ticket = 0;
     w->linked_ = true;
     w->next_ = NULL;
@@ -1598,6 +1629,10 @@ Status DBImpl::SequenceWriteBegin(Writer* w, WriteBatch* updates) {
   }
 
   return s;
+}
+
+Status DBImpl::SequenceWriteBegin(Writer* w, WriteBatch* updates) {
+  return SequenceWriteBeginDiff(w, updates == nullptr ? 0 : WriteBatchInternal::Count(updates));
 }
 
 void DBImpl::SequenceWriteEnd(Writer* w) {

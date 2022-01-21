@@ -1923,6 +1923,26 @@ class ModelDB: public DB {
     handler.map_ = &map_;
     return batch->Iterate(&handler);
   }
+  virtual Status WriteUpdates(const WriteOptions& options, Slice updates,
+      const std::function<void(const Slice&, const Slice&)> delegate) {
+    class Handler : public WriteBatch::Handler {
+     public:
+      KVMap* map_;
+      std::function<void(const Slice&, const Slice&)> delegate_;
+      virtual void Put(const Slice& key, const Slice& value) {
+        (*map_)[key.ToString()] = value.ToString();
+        delegate_(key, value);
+      }
+      virtual void Delete(const Slice& key) {
+        map_->erase(key.ToString());
+      }
+    };
+    Handler handler;
+    handler.map_ = &map_;
+    handler.delegate_ = delegate;
+    return WriteBatchInternal::RawIterate(&handler, updates,
+        WriteBatchInternal::RawCount(updates));
+  }
 
   virtual bool GetProperty(const Slice& property, std::string* value) {
     return false;

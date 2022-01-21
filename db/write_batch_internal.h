@@ -9,12 +9,18 @@
 
 namespace leveldb {
 
+
 class MemTable;
 
 // WriteBatchInternal provides static methods for manipulating a
 // WriteBatch that we don't want in the public WriteBatch interface.
 class WriteBatchInternal {
  public:
+  // Iterates the entries of the write batch.
+  static Status RawIterate(WriteBatch::Handler* handler, Slice input, int count);
+  // Return the number of entries in the batch.
+  // Same as below
+  static int RawCount(const Slice& batch);
   // Return the number of entries in the batch.
   static int Count(const WriteBatch* batch);
 
@@ -39,6 +45,9 @@ class WriteBatchInternal {
   static void SetContents(WriteBatch* batch, const Slice& contents);
 
   static Status InsertInto(const WriteBatch* batch, MemTable* memtable);
+
+  static Status InsertUpdatesInto(const Slice updates, MemTable* memtable,
+      const std::function<void(const Slice&, const Slice&)> handler);
 
   static void Append(WriteBatch* dst, const WriteBatch* src);
 };

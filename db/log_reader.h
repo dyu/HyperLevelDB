@@ -45,6 +45,10 @@ class Reader {
 
   ~Reader();
 
+  // Resets the file cursor to the beginning of the file and
+  // sets the initial_offset_ to the offset provided.
+  Status Reset(uint64_t offset);
+
   // Read the next record into *record.  Returns true if read
   // successfully, false if we hit end of the input.  May use
   // "*scratch" as temporary storage.  The contents filled in *record
@@ -71,7 +75,7 @@ class Reader {
   uint64_t end_of_buffer_offset_;
 
   // Offset at which to start looking for the first record to return
-  uint64_t const initial_offset_;
+  uint64_t initial_offset_;
 
   // Extend record types with the following special values
   enum {

@@ -46,6 +46,8 @@ class DBImpl : public DB {
   virtual Status Put(const WriteOptions&, const Slice& key, const Slice& value);
   virtual Status Delete(const WriteOptions&, const Slice& key);
   virtual Status Write(const WriteOptions& options, WriteBatch* updates);
+  virtual Status WriteUpdates(const WriteOptions& options, Slice updates,
+      const std::function<void(const Slice&, const Slice&)> handler);
   virtual Status Get(const ReadOptions& options,
                      const Slice& key,
                      std::string* value);
@@ -126,6 +128,8 @@ class DBImpl : public DB {
   Status WriteLevel0Table(MemTable* mem, VersionEdit* edit, Version* base, uint64_t* number)
       EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
+  Status SequenceWriteBeginDiff(Writer* w, uint64_t diff)
+      EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   Status SequenceWriteBegin(Writer* w, WriteBatch* updates)
       EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   void SequenceWriteEnd(Writer* w)

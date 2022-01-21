@@ -175,6 +175,24 @@ class SequentialFileImpl : public SequentialFile {
     return Status::OK();
   }
 
+  virtual Status SeekStart() {
+    pos_ = file_->Size();
+    return Status::OK();
+  }
+
+  virtual Status SeekEnd() {
+    pos_ = file_->Size();
+    return Status::OK();
+  }
+
+  virtual Status Seek(uint64_t n) {
+    if (n > file_->Size()) {
+      return Status::IOError("n > file_->Size()");
+    }
+    pos_ = n;
+    return Status::OK();
+  }
+
  private:
   FileState* file_;
   size_t pos_;

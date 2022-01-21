@@ -51,11 +51,10 @@ class WriteBatch {
   };
   Status Iterate(Handler* handler) const;
 
- private:
-  friend class WriteBatchInternal;
-
   std::string rep_;  // See comment in write_batch.cc for the format of rep_
 
+ private:
+  friend class WriteBatchInternal;
   // Intentionally copyable
 };
 

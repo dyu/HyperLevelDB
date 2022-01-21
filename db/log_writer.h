@@ -14,6 +14,7 @@
 namespace leveldb {
 
 class ConcurrentWritableFile;
+class WritableFile;
 
 namespace log {
 
@@ -42,6 +43,38 @@ class Writer {
   // No copying allowed
   Writer(const Writer&);
   void operator=(const Writer&);
+};
+
+class SimpleWriter {
+ public:
+  // Create a writer that will append data to "*dest".
+  // "*dest" must be initially empty.
+  // "*dest" must remain live while this SimpleWriter is in use.
+  explicit SimpleWriter(WritableFile* dest);
+
+  // Create a writer that will append data to "*dest".
+  // "*dest" must have initial length "dest_length".
+  // "*dest" must remain live while this SimpleWriter is in use.
+  SimpleWriter(WritableFile* dest, uint64_t dest_length);
+
+  SimpleWriter(const SimpleWriter&) = delete;
+  SimpleWriter& operator=(const SimpleWriter&) = delete;
+
+  ~SimpleWriter();
+
+  Status AddRecord(const Slice& slice);
+
+  WritableFile* dest_;
+  uint64_t dest_length_;
+  int block_offset_;  // Current offset in block
+
+ private:
+  Status EmitPhysicalRecord(RecordType type, const char* ptr, size_t length);
+
+  // crc32c values for all supported record types.  These are
+  // pre-computed to reduce the overhead of computing the crc of the
+  // record type stored in the header.
+  uint32_t type_crc_[kMaxRecordType + 1];
 };
 
 }  // namespace log

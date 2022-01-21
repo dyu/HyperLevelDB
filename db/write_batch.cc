@@ -43,7 +43,10 @@ void WriteBatch::Clear() {
 }
 
 Status WriteBatch::Iterate(Handler* handler) const {
-  Slice input(rep_);
+  return WriteBatchInternal::RawIterate(handler, Slice(rep_), WriteBatchInternal::Count(this));
+}
+
+Status WriteBatchInternal::RawIterate(WriteBatch::Handler* handler, Slice input, int count) {
   if (input.size() < kHeader) {
     return Status::Corruption("malformed WriteBatch (too small)");
   }
@@ -75,11 +78,15 @@ Status WriteBatch::Iterate(Handler* handler) const {
         return Status::Corruption("unknown WriteBatch tag");
     }
   }
-  if (found != WriteBatchInternal::Count(this)) {
+  if (found != count) {
     return Status::Corruption("WriteBatch has wrong count");
   } else {
     return Status::OK();
   }
+}
+
+int WriteBatchInternal::RawCount(const Slice& rep) {
+  return DecodeFixed32(rep.data() + 8);
 }
 
 int WriteBatchInternal::Count(const WriteBatch* b) {
@@ -112,6 +119,7 @@ void WriteBatch::Delete(const Slice& key) {
 }
 
 namespace {
+
 class MemTableInserter : public WriteBatch::Handler {
  public:
   MemTableInserter()
@@ -133,6 +141,28 @@ class MemTableInserter : public WriteBatch::Handler {
   MemTableInserter(const MemTableInserter&);
   MemTableInserter& operator = (const MemTableInserter&);
 };
+
+class DelegateFnHandler final : public WriteBatch::Handler {
+ public:
+  DelegateFnHandler(std::function<void(const Slice&, const Slice&)> handler)
+    : handler_(handler),
+      inserter_() {
+  }
+  std::function<void(const Slice&, const Slice&)> handler_;
+  MemTableInserter inserter_;
+  
+  virtual void Put(const Slice& key, const Slice& value) {
+    inserter_.Put(key, value);
+    handler_(key, value);
+  }
+  virtual void Delete(const Slice& key) {
+    inserter_.Delete(key);
+  }
+ private:
+  DelegateFnHandler(const DelegateFnHandler&);
+  DelegateFnHandler& operator = (const DelegateFnHandler&);
+};
+
 }  // namespace
 
 Status WriteBatchInternal::InsertInto(const WriteBatch* b,
@@ -141,6 +171,23 @@ Status WriteBatchInternal::InsertInto(const WriteBatch* b,
   inserter.sequence_ = WriteBatchInternal::Sequence(b);
   inserter.mem_ = memtable;
   return b->Iterate(&inserter);
+}
+
+Status WriteBatchInternal::InsertUpdatesInto(const Slice updates,
+    MemTable* memtable,
+    const std::function<void(const Slice&, const Slice&)> handler) {
+  if (handler == nullptr) {
+    MemTableInserter inserter;
+    inserter.sequence_ = SequenceNumber(DecodeFixed64(updates.data_));
+    inserter.mem_ = memtable;
+    return WriteBatchInternal::RawIterate(&inserter, updates,
+        WriteBatchInternal::RawCount(updates.data_));
+  }
+  DelegateFnHandler dh(handler);
+  dh.inserter_.sequence_ = SequenceNumber(DecodeFixed64(updates.data_));
+  dh.inserter_.mem_ = memtable;
+  return WriteBatchInternal::RawIterate(&dh, updates,
+      WriteBatchInternal::RawCount(updates.data_));
 }
 
 void WriteBatchInternal::SetContents(WriteBatch* b, const Slice& contents) {
